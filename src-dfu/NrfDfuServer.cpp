@@ -1,9 +1,9 @@
 #include "NrfDfuServer.h"
-#include "crc.h"
 #include <cstring>
 #include <iomanip>
 #include <iostream>
 #include <sstream>
+#include "crc.h"
 
 static std::string ToHex(const std::string &s, bool upper_case) {  // Used for debugging
     std::ostringstream ret;
@@ -29,7 +29,7 @@ NrfDfuServer::NrfDfuServer(ble_write_t write_command_p, ble_write_t write_reques
       bin_bytes_written(0),
       bin_bytes_to_write(0),
       mtu_extra_bytes(0),
-      mtu_chunks_remaing(0),
+      mtu_chunks_remaining(0),
       mtu_last_chunk(false),
 
       crc32_result(0),
@@ -150,7 +150,18 @@ void NrfDfuServer::manage_state() {
         case DATAFILE_WRITE_FILE:
             this->waiting_response = false;  // Device does not respond until checksum request
             this->calculate_crc(this->datafile_data.c_str(), this->datafile_data.length());
-            this->write_packet(this->datafile_data);  // send data file
+            this->data_mtu_chunks_remaining = this->datafile_data.length() / MTU_CHUNK;
+            this->data_mtu_extra_bytes = this->datafile_data.length() % MTU_CHUNK;
+            for (i = 0; i < this->data_mtu_chunks_remaining; i++) {
+                this->write_packet(
+                    std::string(&this->datafile_data.c_str()[MTU_CHUNK * i], MTU_CHUNK));  // send data file
+                // std::cout << " MTU chunk " << MTU_CHUNK << std::endl;
+            }
+            if (this->data_mtu_extra_bytes) {
+                this->write_packet(std::string(&this->datafile_data.c_str()[MTU_CHUNK * i],
+                                               this->data_mtu_extra_bytes));  // send data file
+                // std::cout << " Last MTU chunk " << this->data_mtu_extra_bytes << std::endl;
+            }
             break;
 
         case DATAFILE_REQ_CHECKSUM:
@@ -191,9 +202,9 @@ void NrfDfuServer::manage_state() {
 
         case BINFILE_WRITE_MTU_CHUNK:
             this->waiting_response = false;
-            this->mtu_chunks_remaing = this->bin_bytes_to_write / MTU_CHUNK;
+            this->mtu_chunks_remaining = this->bin_bytes_to_write / MTU_CHUNK;
             this->mtu_extra_bytes = this->bin_bytes_to_write % MTU_CHUNK;
-            for (i = 0; i < this->mtu_chunks_remaing; i++) {
+            for (i = 0; i < this->mtu_chunks_remaining; i++) {
                 this->write_packet(
                     std::string(&this->binfile_data.c_str()[this->bin_bytes_written + MTU_CHUNK * i], MTU_CHUNK));
             }
