@@ -32,6 +32,7 @@ NrfDfuServer::NrfDfuServer(ble_write_t write_command_p, ble_write_t write_reques
       mtu_extra_bytes(0),
       mtu_chunks_remaining(0),
       mtu_last_chunk(false),
+      bin_retries(0),
 
       crc32_result(0),
       write_command(write_command_p),
@@ -293,6 +294,8 @@ void NrfDfuServer::event_handler() {
                 if (this->checksum_match()) {
                     this->bin_retries = 0;
                     this->state = BINFILE_WRITE_EXECUTE;
+                    std::cout << "[NrfDfuServer:LOG] Acknowledged write with size " << this->bin_bytes_to_write << ". ";
+                    std::cout << "Total bytes written = " << this->bin_bytes_written << ".\n";
                     // std::cout << "Received checksum: 0x" << std::hex << std::setfill('0') << std::setw(2)
                     //           << this->response.resp_val.checksum.crc32 << std::endl;
                 } else {
@@ -303,8 +306,10 @@ void NrfDfuServer::event_handler() {
                         this->bin_retries++;
                         this->bin_bytes_written -= this->bin_bytes_to_write; // Resets bin pointer to previous object
                         this->state = BINFILE_CREATE_DATA_OBJ;
+                        std::cout << "[NrfDfuServer:WARN] Bad checksum ... retrying object write.\n";
                     } else {
                         this->state = DFU_ERROR_CHECKSUM;
+                        std::cout << "[NrfDfuServer:ERROR] Bad checksum ... max retries exceeded. Aborting DFU.\n";
                     }
                     // std::cout << "Invalid Checksum" << std::endl;
                 }
@@ -332,6 +337,7 @@ void NrfDfuServer::event_handler() {
             break;
 
         case DFU_FINISHED:
+            std::cout << "[NrfDfuServer:LOG] DFU successful. Bytes written = " << this->bin_bytes_written << "\n";
         case DFU_ERROR:
         case DFU_ERROR_CHECKSUM:
             break;
