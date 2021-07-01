@@ -233,6 +233,8 @@ class NrfDfuServer {
     uint32_t mtu_chunks_remaining;
     bool mtu_last_chunk;
 
+    uint32_t bin_retries;
+
     // * CRC Result is calculated and stored here before sending data
     uint32_t crc32_result;
 
