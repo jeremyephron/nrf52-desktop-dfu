@@ -15,6 +15,9 @@
 #define RESPONSE_LEN_CHECKSUM 8
 #define RESPONSE_LEN_SELECT 12
 
+// Retry sending a DFU object on a CRC failure
+#define MAX_RETRIES 5
+
 namespace NativeDFU {
 
 typedef std::function<void(std::string service, std::string characteristic, std::string data)> ble_write_t;

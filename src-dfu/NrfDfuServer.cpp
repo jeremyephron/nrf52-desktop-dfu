@@ -5,14 +5,16 @@
 #include <sstream>
 #include "crc.h"
 
-static std::string ToHex(const std::string &s, bool upper_case) {  // Used for debugging
-    std::ostringstream ret;
-    for (std::string::size_type i = 0; i < s.length(); ++i) {
-        int z = s[i] & 0xff;
-        ret << std::hex << std::setfill('0') << std::setw(2) << (upper_case ? std::uppercase : std::nouppercase) << z;
-    }
-    return ret.str();
-}
+// Comment out when not debugging to avoid defined but not used compiler warnings
+// static std::string ToHex(const std::string &s, bool upper_case) {  // Used for debugging
+//     std::ostringstream ret;
+//     for (std::string::size_type i = 0; i < s.length(); ++i) {
+//         int z = s[i] & 0xff;
+//         ret << std::hex << std::setfill('0') << std::setw(2) << (upper_case ? std::uppercase : std::nouppercase) <<
+//         z;
+//     }
+//     return ret.str();
+// }
 
 using namespace NativeDFU;
 
@@ -26,6 +28,7 @@ NrfDfuServer::NrfDfuServer(ble_write_t write_command_p, ble_write_t write_reques
       datafile_data(datafile_data_r),
       binfile_data(binfile_data_r),
 
+      bin_retries(0),
       bin_bytes_written(0),
       bin_bytes_to_write(0),
       mtu_extra_bytes(0),
@@ -216,6 +219,8 @@ void NrfDfuServer::manage_state() {
             break;
 
         case DFU_FINISHED:
+        case DFU_ERROR:
+        case DFU_ERROR_CHECKSUM:
             break;
     }
 }
@@ -288,11 +293,25 @@ void NrfDfuServer::event_handler() {
         case BINFILE_REQ_CHECKSUM:
             if (this->received_event == CHECKSUM_RECEIVED) {
                 if (this->checksum_match()) {
+                    this->bin_retries = 0;
                     this->state = BINFILE_WRITE_EXECUTE;
+                    std::cout << "[NrfDfuServer:LOG] Acknowledged write with size " << this->bin_bytes_to_write << ". ";
+                    std::cout << "Total bytes written = " << this->bin_bytes_written << ".\n";
                     // std::cout << "Received checksum: 0x" << std::hex << std::setfill('0') << std::setw(2)
                     //           << this->response.resp_val.checksum.crc32 << std::endl;
                 } else {
-                    this->state = DFU_ERROR_CHECKSUM;
+                    // Retry logic: on a failed CRC, return bin buffer pointer to start of object
+                    // and return to BINFILE_CREATE_DATA_OBJ state. If number of retries exceeds
+                    // max retires, put FSM into error state
+                    if (this->bin_retries < MAX_RETRIES) {
+                        this->bin_retries++;
+                        this->bin_bytes_written -= this->bin_bytes_to_write;  // Resets bin pointer to previous object
+                        this->state = BINFILE_CREATE_DATA_OBJ;
+                        std::cout << "[NrfDfuServer:WARN] Bad checksum ... retrying object write.\n";
+                    } else {
+                        this->state = DFU_ERROR_CHECKSUM;
+                        std::cout << "[NrfDfuServer:ERROR] Bad checksum ... max retries exceeded. Aborting DFU.\n";
+                    }
                     // std::cout << "Invalid Checksum" << std::endl;
                 }
             } else {
@@ -319,6 +338,9 @@ void NrfDfuServer::event_handler() {
             break;
 
         case DFU_FINISHED:
+            std::cout << "[NrfDfuServer:LOG] DFU successful. Bytes written = " << this->bin_bytes_written << "\n";
+        case DFU_ERROR:
+        case DFU_ERROR_CHECKSUM:
             break;
     }
     this->waiting_response = false;

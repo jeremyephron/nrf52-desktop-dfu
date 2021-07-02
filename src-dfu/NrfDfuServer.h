@@ -1,9 +1,9 @@
 #pragma once
 
-#include "NrfDfuServerTypes.h"
 #include <condition_variable>
 #include <mutex>
 #include <string>
+#include "NrfDfuServerTypes.h"
 
 namespace NativeDFU {
 class NrfDfuServer {
@@ -227,6 +227,7 @@ class NrfDfuServer {
     uint32_t data_mtu_chunks_remaining;
 
     // * Bin file sending variables
+    uint32_t bin_retries;
     uint32_t bin_bytes_written;   // Total bin_bytes_written
     uint32_t bin_bytes_to_write;  // Bytes to write on mtu cycle
     uint32_t mtu_extra_bytes;
