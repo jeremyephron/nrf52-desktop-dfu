@@ -10,7 +10,7 @@
 #define FLASH_PAGE_SIZE 4096
 
 // TODO: MTU Size will depend on platform (MacOs -.-), 20 byte chunk is a safe bet to start with
-#define MTU_CHUNK 20
+#define MTU_CHUNK 200
 
 #define RESPONSE_LEN_CHECKSUM 8
 #define RESPONSE_LEN_SELECT 12
