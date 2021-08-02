@@ -16,7 +16,7 @@
 #define RESPONSE_LEN_SELECT 12
 
 // Retry sending a DFU object on a CRC failure
-#define MAX_RETRIES 5
+#define MAX_RETRIES 25
 
 namespace NativeDFU {
 

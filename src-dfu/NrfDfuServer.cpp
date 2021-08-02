@@ -281,8 +281,15 @@ void NrfDfuServer::event_handler() {
             if (this->received_event == CREATE_SUC) {
                 this->state = BINFILE_WRITE_MTU_CHUNK;
             } else {
-                this->state = DFU_ERROR;
-                // std::cout << "Unknow event for the current state" << std::endl;
+                // Retry logic: if create obj fails immediately retry 
+                if (this->bin_retries < MAX_RETRIES) {
+                    this->bin_retries++;
+                    this->state = BINFILE_CREATE_DATA_OBJ;
+                    std::cout << "[NrfDfuServer:WARN] Object create failed ... retrying.\n";
+                } else {
+                    this->state = DFU_ERROR;
+                    std::cout << "[NrfDfuServer:ERROR] Object create failed ... max retries exceeded. Aborting DFU.\n";
+                }
             }
             break;
 
@@ -401,6 +408,7 @@ void NrfDfuServer::process_response_data(std::string data) {
 
     } else {
         this->received_event = ERROR_RECEIVED;
+        // TODO: better error handling here
         std::cout << " Non success code received " << std::endl;
     }
 }
