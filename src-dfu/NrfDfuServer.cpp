@@ -1,8 +1,10 @@
 #include "NrfDfuServer.h"
 #include <cstring>
+#include <chrono>
 #include <iomanip>
 #include <iostream>
 #include <sstream>
+#include <thread>
 #include "crc.h"
 
 // Comment out when not debugging to avoid defined but not used compiler warnings
@@ -16,6 +18,7 @@
 //     return ret.str();
 // }
 
+using namespace std::chrono_literals;
 using namespace NativeDFU;
 
 NrfDfuServer::NrfDfuServer(ble_write_t write_command_p, ble_write_t write_request_p, const std::string &datafile_data_r,
@@ -279,6 +282,11 @@ void NrfDfuServer::event_handler() {
 
         case BINFILE_CREATE_DATA_OBJ:
             if (this->received_event == CREATE_SUC) {
+                /* NOTE: Sleep after creating the object to give the flash queues a chance to drain.
+                   This is discussed in Nordic's iOS implementation:
+                   https://github.com/NordicSemiconductor/IOS-DFU-Library/blob/42b13e8b84404fd38eb50ae75c46559032706ce6/iOSDFULibrary/Classes/Implementation/DFUServiceInitiator.swift#L204
+                 */
+                std::this_thread::sleep_for(400ms);
                 this->state = BINFILE_WRITE_MTU_CHUNK;
             } else {
                 // Retry logic: if create obj fails immediately retry 
