@@ -7,6 +7,8 @@
 #include <thread>
 #include "crc.h"
 
+using namespace std::chrono_literals;
+
 // Comment out when not debugging to avoid defined but not used compiler warnings
 // static std::string ToHex(const std::string &s, bool upper_case) {  // Used for debugging
 //     std::ostringstream ret;
@@ -129,7 +131,10 @@ void NrfDfuServer::run() {
     // std::cout << "Running FSM" << std::endl;
     this->manage_state();
     std::unique_lock<std::mutex> lock(mutex_waiting_response);
-    cv_waiting_response.wait(lock, [&] { return !this->waiting_response; });
+    if (!cv_waiting_response.wait_until(lock, std::chrono::system_clock::now() + 8s, [&] { return !this->waiting_response; })) {
+      this->state = DFU_ERROR;
+      std::cout << "[NrfDfuServer:ERROR] Did not receive any response from the remote device.\n";
+    }
     this->event_handler();  // Notify Received
     // std::cout << "State update to " << this->state << std::endl;
 }
