@@ -7,7 +7,7 @@
 #include <thread>
 #include "crc.h"
 
-using std::chrono_literals;
+using namespace std::chrono_literals;
 
 // Comment out when not debugging to avoid defined but not used compiler warnings
 // static std::string ToHex(const std::string &s, bool upper_case) {  // Used for debugging
