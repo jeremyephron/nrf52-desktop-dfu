@@ -131,7 +131,7 @@ void NrfDfuServer::run() {
     // std::cout << "Running FSM" << std::endl;
     this->manage_state();
     std::unique_lock<std::mutex> lock(mutex_waiting_response);
-    if (cv_waiting_response.wait_until(lock, std::chrono::system_clock::now() + 8s, [&] { return !this->waiting_response; }) == std::cv_status::timeout) {
+    if (!cv_waiting_response.wait_until(lock, std::chrono::system_clock::now() + 8s, [&] { return !this->waiting_response; })) {
       this->state = DFU_ERROR;
       std::cout << "[NrfDfuServer:ERROR] Did not receive any response from the remote device.\n";
     }
